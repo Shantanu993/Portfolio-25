@@ -1,0 +1,413 @@
+// =============================================================================
+// PRISMA SCHEMA - PORTFOLIO DATABASE MODELS
+// =============================================================================
+// This file defines all the database models for the portfolio website.
+// Run `npx prisma generate` after making changes to update the client.
+// Run `npx prisma db push` to sync with MongoDB.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// USER MODEL (Admin Authentication)
+// =============================================================================
+// Stores admin user credentials for the CMS dashboard.
+// Only admins can log in and manage content.
+// =============================================================================
+model User {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  email          String    @unique
+  name           String?
+  password       String    // Hashed with bcrypt
+  role           Role      @default(ADMIN)
+  avatar         String?
+  bio            String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastLogin      DateTime?
+  
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  SUPER_ADMIN
+}
+
+// =============================================================================
+// PROJECT MODEL
+// =============================================================================
+// Portfolio projects - can be manually added or synced from GitHub.
+// Featured projects appear on the homepage and recruiter view.
+// =============================================================================
+model Project {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  slug           String    @unique
+  description    String
+  longDescription String?  // Detailed project description
+  thumbnail      String?   // Main project image
+  images         String[]  // Additional project screenshots
+  technologies   String[]  // Tech stack used
+  githubUrl      String?
+  liveUrl        String?
+  featured       Boolean   @default(false)
+  order          Int       @default(0) // For custom ordering
+  status         ContentStatus @default(PUBLISHED)
+  
+  // GitHub sync data
+  githubId       String?   @unique
+  stars          Int?
+  forks          Int?
+  lastGithubSync DateTime?
+  
+  // Categorization
+  category       String?   // e.g., "Web App", "Mobile", "AI/ML"
+  
+  // Timestamps
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("projects")
+}
+
+// =============================================================================
+// ARTICLE MODEL
+// =============================================================================
+// Blog articles - can be synced from Medium, Dev.to, Hashnode, or manual entry.
+// =============================================================================
+model Article {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  slug           String    @unique
+  excerpt        String?   // Short summary
+  content        String?   // Full content (for local articles)
+  coverImage     String?
+  author         String?
+  
+  // External source info
+  source         ArticleSource @default(LOCAL)
+  externalId     String?   @unique
+  externalUrl    String?
+  
+  // Categorization
+  tags           String[]
+  category       String?
+  
+  // Status
+  featured       Boolean   @default(false)
+  status         ContentStatus @default(PUBLISHED)
+  
+  // Metrics
+  views          Int       @default(0)
+  likes          Int?
+  readingTime    Int?      // In minutes
+  
+  // Timestamps
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("articles")
+}
+
+enum ArticleSource {
+  LOCAL
+  MEDIUM
+  DEVTO
+  HASHNODE
+  RSS
+}
+
+// =============================================================================
+// SKILL MODEL
+// =============================================================================
+// Technical skills organized by category.
+// Displayed on the skills page and recruiter view.
+// =============================================================================
+model Skill {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  slug           String    @unique
+  icon           String?   // Icon name or URL
+  category       String    // e.g., "Frontend", "Backend", "DevOps"
+  proficiency    Int       @default(80) // 0-100 percentage
+  yearsOfExp     Float?    // Years of experience
+  featured       Boolean   @default(false)
+  order          Int       @default(0)
+  status         ContentStatus @default(PUBLISHED)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("skills")
+}
+
+// =============================================================================
+// EXPERIENCE MODEL
+// =============================================================================
+// Work experience and education timeline.
+// Displayed on the experience page and recruiter view.
+// =============================================================================
+model Experience {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  title          String    // Job title
+  company        String    // Company name
+  companyLogo    String?
+  companyUrl     String?
+  location       String?
+  type           ExperienceType @default(WORK)
+  employmentType EmploymentType?
+  description    String?   // Rich text description
+  achievements   String[]  // Key achievements/responsibilities
+  technologies   String[]  // Tech used in this role
+  startDate      DateTime
+  endDate        DateTime? // Null = current position
+  isCurrent      Boolean   @default(false)
+  order          Int       @default(0)
+  status         ContentStatus @default(PUBLISHED)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("experiences")
+}
+
+enum ExperienceType {
+  WORK
+  EDUCATION
+  FREELANCE
+  VOLUNTEER
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  FREELANCE
+  INTERNSHIP
+}
+
+// =============================================================================
+// SERVICE MODEL
+// =============================================================================
+// Freelance services offered.
+// Displayed on the services page for client acquisition.
+// =============================================================================
+model Service {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  slug           String    @unique
+  shortDesc      String    // Brief description
+  description    String    // Full description
+  icon           String?
+  image          String?
+  features       String[]  // Key features included
+  
+  // Pricing
+  startingPrice  Float?
+  priceUnit      String?   // e.g., "per project", "per hour"
+  
+  // Status
+  featured       Boolean   @default(false)
+  order          Int       @default(0)
+  status         ContentStatus @default(PUBLISHED)
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("services")
+}
+
+// =============================================================================
+// TESTIMONIAL MODEL
+// =============================================================================
+// Client testimonials and recommendations.
+// Displayed on services and about pages.
+// =============================================================================
+model Testimonial {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  role           String?   // e.g., "CEO at TechCorp"
+  company        String?
+  avatar         String?
+  content        String    // The testimonial text
+  rating         Int?      // 1-5 stars
+  projectId      String?   @db.ObjectId // Related project (optional)
+  featured       Boolean   @default(false)
+  order          Int       @default(0)
+  status         ContentStatus @default(PUBLISHED)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("testimonials")
+}
+
+// =============================================================================
+// CERTIFICATION MODEL
+// =============================================================================
+// Professional certifications and achievements.
+// Displayed on recruiter view and about page.
+// =============================================================================
+model Certification {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  issuer         String
+  issuerLogo     String?
+  credentialId   String?
+  credentialUrl  String?
+  issueDate      DateTime
+  expiryDate     DateTime?
+  description    String?
+  featured       Boolean   @default(false)
+  order          Int       @default(0)
+  status         ContentStatus @default(PUBLISHED)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("certifications")
+}
+
+// =============================================================================
+// SITE SETTINGS MODEL
+// =============================================================================
+// Global site configuration and owner information.
+// Single document that stores all site-wide settings.
+// =============================================================================
+model SiteSettings {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // Personal Info (Edit these to customize your portfolio)
+  ownerName        String    @default("John Doe")
+  ownerTitle       String    @default("Full-Stack Developer")
+  ownerEmail       String    @default("hello@example.com")
+  ownerBio         String?
+  ownerShortBio    String?   // One-liner for hero section
+  ownerAvatar      String?
+  ownerResume      String?   // Resume PDF URL
+  
+  // Social Links (Add your social profiles)
+  githubUrl        String?
+  linkedinUrl      String?
+  twitterUrl       String?
+  youtubeUrl       String?
+  instagramUrl     String?
+  dribbbleUrl      String?
+  behanceUrl       String?
+  mediumUrl        String?
+  devtoUrl         String?
+  hashnodeUrl      String?
+  
+  // Site Configuration
+  siteName         String    @default("Developer Portfolio")
+  siteDescription  String?
+  siteKeywords     String[]
+  siteUrl          String?
+  
+  // Feature Toggles
+  enableBlog       Boolean   @default(true)
+  enableProjects   Boolean   @default(true)
+  enableServices   Boolean   @default(true)
+  enableRecruiter  Boolean   @default(true)
+  enableContact    Boolean   @default(true)
+  
+  // Content Sync Settings
+  syncGithub       Boolean   @default(true)
+  syncMedium       Boolean   @default(true)
+  syncDevto        Boolean   @default(true)
+  syncHashnode     Boolean   @default(true)
+  
+  // Calendar/Booking Settings
+  enableBooking    Boolean   @default(true)
+  meetingDuration  Int       @default(15) // In minutes
+  availableSlots   Json?     // Available time slots configuration
+  
+  // Analytics
+  googleAnalyticsId String?
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  @@map("site_settings")
+}
+
+// =============================================================================
+// CONTACT SUBMISSION MODEL
+// =============================================================================
+// Stores contact form submissions.
+// =============================================================================
+model ContactSubmission {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  email          String
+  subject        String?
+  message        String
+  type           ContactType @default(GENERAL)
+  status         ContactStatus @default(UNREAD)
+  notes          String?   // Admin notes
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("contact_submissions")
+}
+
+enum ContactType {
+  GENERAL
+  JOB_INQUIRY
+  FREELANCE_PROJECT
+  COLLABORATION
+  OTHER
+}
+
+enum ContactStatus {
+  UNREAD
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+// =============================================================================
+// BOOKING MODEL
+// =============================================================================
+// Calendar appointment bookings.
+// =============================================================================
+model Booking {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  email          String
+  date           DateTime
+  startTime      String    // e.g., "14:00"
+  endTime        String    // e.g., "14:15"
+  timezone       String    @default("UTC")
+  purpose        String?
+  meetingLink    String?   // Google Meet link
+  status         BookingStatus @default(PENDING)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+// =============================================================================
+// SHARED ENUMS
+// =============================================================================
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
